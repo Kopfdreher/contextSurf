@@ -1,0 +1,14 @@
+{
+  "name": "vibe-surfing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0",
+    "vite": "^6.3.5"
+  }
+}
