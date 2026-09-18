@@ -1,4 +1,4 @@
-# Vibe Surfing
+# textSurf
 
 Highlight text, add an optional note, and open the most relevant destination.
 

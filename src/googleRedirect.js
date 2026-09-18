@@ -1,4 +1,4 @@
-const QUERY_KEY = "vibeSurfingLastQuery";
+const QUERY_KEY = "textSurfLastQuery";
 
 function isMapsGoogle(hostname, pathname) {
   return (

@@ -2,7 +2,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 
 export default defineManifest({
   manifest_version: 3,
-  name: "Vibe Surfing",
+  name: "textSurf",
   version: "1.0.0",
   description:
     "Highlight text, infer intent from the page, and open a relevant destination.",

@@ -1,5 +1,5 @@
-const MENU_ID = "vibe-surfing-surf";
-const QUERY_KEY = "vibeSurfingLastQuery";
+const MENU_ID = "textsurf-menu";
+const QUERY_KEY = "textSurfLastQuery";
 
 function luckyUrl(query) {
   return `https://www.google.com/search?q=${encodeURIComponent(query)}&btnI=1`;
@@ -18,7 +18,7 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== MENU_ID || !tab?.id) return;
   chrome.tabs.sendMessage(tab.id, {
-    type: "SURF_SELECTION",
+    type: "TEXTSURF_SELECTION",
     selectedText: info.selectionText,
   });
 });

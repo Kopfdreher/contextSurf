@@ -6,9 +6,9 @@ import {
 } from "./utils/promptEngine.js";
 import pillCss from "./content.css?inline";
 
-const HOST_ID = "vs-host";
-const PILL_LABEL = "Surf";
-const NOTE_KEY = "vibeSurfingLastNote";
+const HOST_ID = "ts-host";
+const PILL_LABEL = "🌊 surf";
+const NOTE_KEY = "textSurfLastNote";
 const DEFAULT_PLACEHOLDER = "add a note…";
 const NOTE_DEBOUNCE_MS = 150;
 const PILL_PAD = 8;
@@ -148,7 +148,7 @@ function getHost() {
     style.textContent = pillCss;
 
     barEl = document.createElement("form");
-    barEl.className = "vs-bar";
+    barEl.className = "ts-bar";
     barEl.addEventListener("submit", (event) => {
       event.preventDefault();
       void onSurfClick();
@@ -156,7 +156,7 @@ function getHost() {
 
     noteInput = document.createElement("input");
     noteInput.type = "text";
-    noteInput.className = "vs-note";
+    noteInput.className = "ts-note";
     noteInput.placeholder = "add a note…";
     noteInput.autocomplete = "off";
     noteInput.addEventListener("keydown", (event) => {
@@ -169,7 +169,7 @@ function getHost() {
 
     pillButton = document.createElement("button");
     pillButton.type = "submit";
-    pillButton.className = "vs-pill";
+    pillButton.className = "ts-pill";
     pillButton.textContent = PILL_LABEL;
 
     host.addEventListener("mousedown", (event) => {
@@ -183,9 +183,9 @@ function getHost() {
     shadowRoot.append(style, barEl);
   } else if (!shadowRoot) {
     shadowRoot = host.shadowRoot;
-    barEl = shadowRoot?.querySelector(".vs-bar");
-    noteInput = shadowRoot?.querySelector(".vs-note");
-    pillButton = shadowRoot?.querySelector(".vs-pill");
+    barEl = shadowRoot?.querySelector(".ts-bar");
+    noteInput = shadowRoot?.querySelector(".ts-note");
+    pillButton = shadowRoot?.querySelector(".ts-pill");
   }
   return host;
 }
@@ -294,7 +294,7 @@ async function onSurfClick() {
   persistTypedNote(typedNote(), { immediate: true });
   if (pillButton) {
     pillButton.disabled = true;
-    pillButton.textContent = "Surfing…";
+    pillButton.textContent = "🌊 surfing…";
   }
   if (noteInput) noteInput.disabled = true;
   try {
@@ -345,7 +345,7 @@ window.addEventListener("resize", () => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "SURF_SELECTION") {
+  if (message?.type !== "TEXTSURF_SELECTION") {
     return;
   }
   const context = lastContext || extractContext();
