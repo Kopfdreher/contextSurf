@@ -17,6 +17,10 @@
   pointer-events: auto;
 }
 
+.ts-bar:focus-within {
+  border-color: rgba(255, 255, 255, 0.38);
+}
+
 .ts-note {
   width: 160px;
   min-width: 120px;
@@ -33,6 +37,9 @@
 
 .ts-clear {
   appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 18px;
   height: 18px;
@@ -40,13 +47,16 @@
   border: 0;
   border-radius: 50%;
   background: #374151;
-  color: #f9fafb;
-  font: 600 14px/18px ui-sans-serif, system-ui, sans-serif;
+  color: #d1d5db;
+  font: 500 12px/1 ui-sans-serif, system-ui, sans-serif;
   cursor: pointer;
+  outline: none;
+  padding-bottom: 1px;
 }
 
 .ts-clear:hover {
   background: #4b5563;
+  color: #f9fafb;
 }
 
 .ts-clear[hidden] {
@@ -70,14 +80,8 @@
   background: #374151;
 }
 
-.ts-clear:focus-visible {
-  outline: 2px solid #38bdf8;
-  outline-offset: 1px;
-}
-
-.ts-pill:focus-visible,
-.ts-note:focus-visible {
-  outline: 2px solid #38bdf8;
+.ts-pill:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.45);
   outline-offset: 1px;
 }
 
@@ -96,7 +100,7 @@
   z-index: 1;
   box-sizing: border-box;
   border: 1px solid rgba(56, 189, 248, 0.9);
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(56, 189, 248, 0.38);
   pointer-events: none;
   user-select: none;
