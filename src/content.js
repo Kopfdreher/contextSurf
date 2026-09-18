@@ -14,6 +14,7 @@ const NOTE_DEBOUNCE_MS = 150;
 const PILL_PAD = 8;
 const PILL_EST_WIDTH = 280;
 const PILL_EST_HEIGHT = 44;
+const HL_PAD = 4;
 
 let shadowRoot = null;
 let barEl = null;
@@ -23,6 +24,13 @@ let lastContext = null;
 let lastNote = "";
 let hideTimer = 0;
 let persistTimer = 0;
+let ignoreSelectionHide = false;
+let overlayEls = [];
+let overlayRange = null;
+let shortcutHold = false;
+let shortcutLatched = false;
+let lastPointer = { x: 0, y: 0 };
+let hoverRaf = 0;
 
 function sendMessage(message) {
   return new Promise((resolve, reject) => {
@@ -133,15 +141,23 @@ function clampPillPosition(rect) {
   return { left, top };
 }
 
+function applyHostLayer(host) {
+  host.style.position = "fixed";
+  host.style.inset = "0";
+  host.style.top = "0";
+  host.style.left = "0";
+  host.style.width = "100%";
+  host.style.height = "100%";
+  host.style.zIndex = "2147483647";
+  host.style.pointerEvents = "none";
+}
+
 function getHost() {
   let host = hostEl();
   if (!host) {
     host = document.createElement("div");
     host.id = HOST_ID;
-    host.style.position = "fixed";
-    host.style.zIndex = "2147483647";
-    host.style.top = "0";
-    host.style.left = "0";
+    applyHostLayer(host);
     document.documentElement.appendChild(host);
     shadowRoot = host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
@@ -172,26 +188,75 @@ function getHost() {
     pillButton.className = "ts-pill";
     pillButton.textContent = PILL_LABEL;
 
-    host.addEventListener("mousedown", (event) => {
+    shadowRoot.addEventListener("mousedown", (event) => {
       const path = event.composedPath();
       if (path.includes(noteInput)) return;
       event.preventDefault();
       event.stopPropagation();
     });
+    shadowRoot.addEventListener("click", (event) => {
+      if (event.target?.classList?.contains("ts-hl")) {
+        event.preventDefault();
+        event.stopPropagation();
+        void onSurfClick();
+      }
+    });
 
     barEl.append(noteInput, pillButton);
     shadowRoot.append(style, barEl);
-  } else if (!shadowRoot) {
-    shadowRoot = host.shadowRoot;
-    barEl = shadowRoot?.querySelector(".ts-bar");
-    noteInput = shadowRoot?.querySelector(".ts-note");
-    pillButton = shadowRoot?.querySelector(".ts-pill");
+  } else {
+    applyHostLayer(host);
+    if (!shadowRoot) {
+      shadowRoot = host.shadowRoot;
+      barEl = shadowRoot?.querySelector(".ts-bar");
+      noteInput = shadowRoot?.querySelector(".ts-note");
+      pillButton = shadowRoot?.querySelector(".ts-pill");
+    }
   }
   return host;
 }
 
-function hidePill() {
+function clearOverlay() {
+  for (const el of overlayEls) el.remove();
+  overlayEls = [];
+}
+
+function paintOverlay(range) {
+  clearOverlay();
+  if (!range || !shadowRoot) return;
+  const rects = range.getClientRects();
+  for (const rect of rects) {
+    if (rect.width === 0 && rect.height === 0) continue;
+    const el = document.createElement("div");
+    el.className = "ts-hl";
+    el.style.left = `${rect.left - HL_PAD}px`;
+    el.style.top = `${rect.top - HL_PAD}px`;
+    el.style.width = `${rect.width + HL_PAD * 2}px`;
+    el.style.height = `${rect.height + HL_PAD * 2}px`;
+    shadowRoot.append(el);
+    overlayEls.push(el);
+  }
+}
+
+function positionBar(rect) {
+  if (!barEl || !rect) return;
+  const pos = clampPillPosition(rect);
+  barEl.style.left = `${pos.left}px`;
+  barEl.style.top = `${pos.top}px`;
+}
+
+function hidePill({ latch = false } = {}) {
   const host = hostEl();
+  if (latch && shortcutHold) shortcutLatched = true;
+  shortcutHold = false;
+  ignoreSelectionHide = false;
+  overlayRange = null;
+  if (hoverRaf) {
+    cancelAnimationFrame(hoverRaf);
+    hoverRaf = 0;
+  }
+  document.documentElement.style.removeProperty("cursor");
+  clearOverlay();
   lastContext = null;
   persistTypedNote(typedNote(), { immediate: true });
   if (noteInput) {
@@ -205,6 +270,148 @@ function hidePill() {
   }
   if (barEl) barEl.classList.remove("is-error");
   if (host) host.style.display = "none";
+}
+
+function isWordChar(ch) {
+  return /[\p{L}\p{N}_-]/u.test(ch);
+}
+
+function expandToWord(node, offset) {
+  if (!node || node.nodeType !== Node.TEXT_NODE || isInsideHost(node)) {
+    return null;
+  }
+  const text = node.textContent || "";
+  if (!text) return null;
+  let start = Math.min(Math.max(0, offset), text.length);
+  let end = start;
+  while (start > 0 && isWordChar(text[start - 1])) start -= 1;
+  while (end < text.length && isWordChar(text[end])) end += 1;
+  if (start === end) return null;
+  const range = document.createRange();
+  range.setStart(node, start);
+  range.setEnd(node, end);
+  return range;
+}
+
+function rangesEqual(a, b) {
+  return Boolean(
+    a &&
+      b &&
+      a.startContainer === b.startContainer &&
+      a.endContainer === b.endContainer &&
+      a.startOffset === b.startOffset &&
+      a.endOffset === b.endOffset,
+  );
+}
+
+function wordRangeAtCaret() {
+  const selection = window.getSelection();
+  if (!selection?.anchorNode) return null;
+  return expandToWord(selection.anchorNode, selection.anchorOffset);
+}
+
+function wordRangeAtPoint(x, y) {
+  const fromHit = (hit) => {
+    if (!hit) return null;
+    return expandToWord(hit.startContainer, hit.startOffset);
+  };
+  const first = fromHit(document.caretRangeFromPoint(x, y));
+  if (first) return first;
+  const host = hostEl();
+  if (!host || host.style.display === "none") return null;
+  host.style.visibility = "hidden";
+  const retry = fromHit(document.caretRangeFromPoint(x, y));
+  host.style.visibility = "";
+  return retry;
+}
+
+function wordAtCaret() {
+  return (wordRangeAtCaret()?.toString() || "").replace(/\s+/g, " ").trim();
+}
+
+function selectWordAtCaret() {
+  const range = wordRangeAtCaret();
+  if (!range) return false;
+  ignoreSelectionHide = true;
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return true;
+}
+
+function contextFromRange(range) {
+  const selectedText = range.toString().replace(/\s+/g, " ").trim();
+  if (!selectedText) return null;
+  const block =
+    range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer.parentElement;
+  const surroundingContext = (block?.innerText || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 300);
+  const rect = range.getBoundingClientRect();
+  if (!rect.width && !rect.height) return null;
+  return {
+    selectedText,
+    surroundingContext,
+    extraNote: extraNoteValue(),
+    ...pageContextFields(),
+    rect,
+  };
+}
+
+function highlightFromRange(range, { resetNote = false } = {}) {
+  if (!range) return false;
+  if (rangesEqual(overlayRange, range)) return true;
+  const context = contextFromRange(range);
+  if (!context) return false;
+  overlayRange = range.cloneRange();
+  showPill(context, { overlay: true, resetNote });
+  paintOverlay(overlayRange);
+  document.documentElement.style.cursor = "pointer";
+  return true;
+}
+
+function highlightWordAtPoint(x, y) {
+  const range = wordRangeAtPoint(x, y);
+  if (!range) return false;
+  return highlightFromRange(range, { resetNote: !overlayEls.length });
+}
+
+function startShortcutHold() {
+  if (shortcutLatched) return false;
+  shortcutHold = true;
+  ignoreSelectionHide = true;
+  const fromPoint = highlightWordAtPoint(lastPointer.x, lastPointer.y);
+  if (fromPoint) return true;
+  const caret = wordRangeAtCaret();
+  if (caret) return highlightFromRange(caret, { resetNote: !overlayEls.length });
+  const selection = window.getSelection();
+  if (selection && !selection.isCollapsed && selection.rangeCount) {
+    return highlightFromRange(selection.getRangeAt(0), {
+      resetNote: !overlayEls.length,
+    });
+  }
+  return true;
+}
+
+function previewSurf({ overlay = false } = {}) {
+  if (overlay) return startShortcutHold();
+  const selection = window.getSelection();
+  const hasHighlight =
+    selection && !selection.isCollapsed && selection.toString().trim();
+  if (!hasHighlight && !selectWordAtCaret()) return false;
+  const context = extractContext();
+  if (!context || context.rect.width === 0) {
+    if (!shortcutHold) ignoreSelectionHide = false;
+    return false;
+  }
+  window.setTimeout(() => {
+    if (!shortcutHold) ignoreSelectionHide = false;
+  }, 50);
+  showPill(context);
+  return true;
 }
 
 function extractContext() {
@@ -240,22 +447,39 @@ function extractContext() {
   };
 }
 
-function showPill(context) {
+function showPill(context, { overlay = false, resetNote = true } = {}) {
   const host = getHost();
   lastContext = context;
-  const pos = clampPillPosition(context.rect);
   host.style.display = "block";
-  host.style.left = `${pos.left}px`;
-  host.style.top = `${pos.top}px`;
+  positionBar(context.rect);
+  if (!overlay) clearOverlay();
   if (barEl) barEl.classList.remove("is-error");
-  if (noteInput) {
+  if (noteInput && resetNote) {
     noteInput.disabled = false;
     noteInput.value = "";
     applyPlaceholder();
   }
-  if (pillButton) {
+  if (pillButton && resetNote) {
     pillButton.disabled = false;
     pillButton.textContent = PILL_LABEL;
+  }
+}
+
+function syncOverlay() {
+  if (!shortcutHold || !overlayRange) return false;
+  try {
+    const rect = overlayRange.getBoundingClientRect();
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      hidePill();
+      return true;
+    }
+    if (lastContext) lastContext = { ...lastContext, rect };
+    positionBar(rect);
+    paintOverlay(overlayRange);
+    return true;
+  } catch {
+    hidePill();
+    return true;
   }
 }
 
@@ -297,9 +521,10 @@ async function onSurfClick() {
     pillButton.textContent = "🌊 surfing…";
   }
   if (noteInput) noteInput.disabled = true;
+  const latch = shortcutHold;
   try {
     await runSurf(payload.selectedText, payload);
-    hidePill();
+    hidePill({ latch });
   } catch {
     if (pillButton) {
       pillButton.disabled = false;
@@ -311,9 +536,11 @@ async function onSurfClick() {
 }
 
 function onMouseUp(event) {
+  if (shortcutHold) return;
   if (isInsideHost(event.target)) return;
   window.clearTimeout(hideTimer);
   hideTimer = window.setTimeout(() => {
+    if (shortcutHold) return;
     const context = extractContext();
     if (!context || context.rect.width === 0) {
       if (!isHostActive()) hidePill();
@@ -324,28 +551,94 @@ function onMouseUp(event) {
 }
 
 function onSelectionChange() {
-  if (isHostActive()) return;
+  if (ignoreSelectionHide || shortcutHold || isHostActive()) return;
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || !selection.toString().trim()) {
     hidePill();
   }
 }
 
+function isOptionS(event) {
+  return (
+    event.altKey &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    (event.code === "KeyS" || event.key === "s" || event.key === "S")
+  );
+}
+
+function onKeyDown(event) {
+  if (!isOptionS(event) || event.repeat) return;
+  if (shortcutLatched) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!shortcutHold) startShortcutHold();
+}
+
+function onKeyUp(event) {
+  const releasedAlt =
+    event.key === "Alt" ||
+    event.key === "AltLeft" ||
+    event.key === "AltRight" ||
+    event.code === "AltLeft" ||
+    event.code === "AltRight";
+  if (!releasedAlt) return;
+  shortcutLatched = false;
+  if (shortcutHold || overlayEls.length) hidePill();
+}
+
+function onMouseMove(event) {
+  lastPointer = { x: event.clientX, y: event.clientY };
+  if (!shortcutHold || shortcutLatched) return;
+  if (isInsideHost(event.target)) return;
+  if (hoverRaf) return;
+  hoverRaf = requestAnimationFrame(() => {
+    hoverRaf = 0;
+    if (!shortcutHold || shortcutLatched) return;
+    highlightWordAtPoint(lastPointer.x, lastPointer.y);
+  });
+}
+
+function onHoldPointerDown(event) {
+  if (!shortcutHold) return;
+  if (isInsideHost(event.target)) return;
+  event.preventDefault();
+}
+
+function onHoldClick(event) {
+  if (!shortcutHold || shortcutLatched) return;
+  if (isInsideHost(event.target)) return;
+  if (!lastContext) return;
+  event.preventDefault();
+  event.stopPropagation();
+  void onSurfClick();
+}
+
+function onScrollOrResize() {
+  if (syncOverlay()) return;
+  if (!isHostActive()) hidePill();
+}
+
 document.addEventListener("mouseup", onMouseUp);
 document.addEventListener("selectionchange", onSelectionChange);
-window.addEventListener(
-  "scroll",
-  () => {
-    if (!isHostActive()) hidePill();
-  },
-  { passive: true },
-);
-window.addEventListener("resize", () => {
-  if (!isHostActive()) hidePill();
-});
+document.addEventListener("mousemove", onMouseMove, true);
+document.addEventListener("mousedown", onHoldPointerDown, true);
+document.addEventListener("click", onHoldClick, true);
+window.addEventListener("keydown", onKeyDown, true);
+window.addEventListener("keyup", onKeyUp, true);
+window.addEventListener("scroll", onScrollOrResize, { passive: true, capture: true });
+window.addEventListener("resize", onScrollOrResize);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "TEXTSURF_SELECTION") {
+    return;
+  }
+  if (message.preview) {
+    if (shortcutLatched) {
+      sendResponse({ ok: false });
+      return;
+    }
+    sendResponse({ ok: startShortcutHold() });
     return;
   }
   const context = lastContext || extractContext();
@@ -353,7 +646,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     context?.selectedText ||
     String(message.selectedText || "")
       .replace(/\s+/g, " ")
-      .trim();
+      .trim() ||
+    wordAtCaret();
   if (!selectedText) {
     sendResponse({ ok: false });
     return;

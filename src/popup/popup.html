@@ -68,9 +68,33 @@
       input:checked + .switch::after {
         transform: translateX(16px);
       }
-      input:focus-visible + .switch {
-        outline: 2px solid #38bdf8;
-        outline-offset: 2px;
+      .row + .row {
+        margin-top: 8px;
+      }
+      .row.shortcut {
+        cursor: default;
+      }
+      kbd {
+        margin-left: 6px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #374151;
+        font: 600 11px/1 ui-sans-serif, system-ui, sans-serif;
+        color: #f9fafb;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        background: #374151;
+        color: #f9fafb;
+        font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
+        padding: 6px 10px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button:hover {
+        background: #4b5563;
       }
     </style>
   </head>
@@ -81,6 +105,10 @@
       <input id="background" type="checkbox" />
       <span class="switch" aria-hidden="true"></span>
     </label>
+    <div class="row shortcut">
+      <span>shortcut <kbd id="shortcut">Alt+S</kbd></span>
+      <button type="button" id="change">Change shortcut</button>
+    </div>
     <script type="module" src="./popup.js"></script>
   </body>
 </html>

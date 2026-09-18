@@ -3,6 +3,8 @@
 }
 
 .ts-bar {
+  position: fixed;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -12,6 +14,7 @@
   background: #111827;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
   font: 12px/1.2 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  pointer-events: auto;
 }
 
 .ts-note {
@@ -59,4 +62,15 @@
 
 .ts-bar.is-error {
   border-color: #f87171;
+}
+
+.ts-hl {
+  position: fixed;
+  z-index: 1;
+  box-sizing: border-box;
+  border: 1px solid rgba(56, 189, 248, 0.9);
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.38);
+  pointer-events: none;
+  user-select: none;
 }

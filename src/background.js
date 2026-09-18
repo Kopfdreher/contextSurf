@@ -16,12 +16,30 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+function sendSurfToTab(tabId, selectedText, preview = false) {
+  if (!tabId) return;
+  chrome.tabs.sendMessage(tabId, {
+    type: "TEXTSURF_SELECTION",
+    selectedText: selectedText || "",
+    preview,
+  });
+}
+
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== MENU_ID || !tab?.id) return;
-  chrome.tabs.sendMessage(tab.id, {
-    type: "TEXTSURF_SELECTION",
-    selectedText: info.selectionText,
-  });
+  sendSurfToTab(tab.id, info.selectionText, false);
+});
+
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== "textsurf-run") return;
+  const run = (target) => sendSurfToTab(target?.id, "", true);
+  if (tab?.id) {
+    run(tab);
+    return;
+  }
+  void chrome.tabs
+    .query({ active: true, currentWindow: true })
+    .then(([active]) => run(active));
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

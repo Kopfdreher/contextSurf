@@ -8,9 +8,28 @@ export default defineManifest({
     "Highlight text, infer intent from the page, and open a relevant destination.",
   permissions: ["contextMenus", "tabs", "storage"],
   host_permissions: ["<all_urls>"],
+  icons: {
+    16: "icons/icon16.png",
+    48: "icons/icon48.png",
+    128: "icons/icon128.png",
+  },
   action: {
     default_popup: "src/popup/popup.html",
     default_title: "textSurf",
+    default_icon: {
+      16: "icons/icon16.png",
+      48: "icons/icon48.png",
+      128: "icons/icon128.png",
+    },
+  },
+  commands: {
+    "textsurf-run": {
+      suggested_key: {
+        default: "Alt+S",
+        mac: "Alt+S",
+      },
+      description: "Surf the selected text",
+    },
   },
   background: {
     service_worker: "src/background.js",

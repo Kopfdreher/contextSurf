@@ -11,7 +11,9 @@ npm run build
 
 `chrome://extensions/` → Developer mode → **Load unpacked** → `dist/`
 
-Click the toolbar icon to open settings: **Open in background** keeps you on the current page; off (default) focuses the new tab.
+Click the toolbar icon to open settings: **open tabs in background**, and **Change shortcut** (default **Alt+S** / Option+S). Chrome may leave the key unset if it conflicts; assign it there if needed.
+
+Hold **Option+S** (Alt+S) and hover a word to highlight it. Click the highlight or **surf** to open the tab; release Option to dismiss.
 
 ## How it ranks signals
 
