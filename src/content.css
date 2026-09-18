@@ -31,6 +31,28 @@
   color: #9ca3af;
 }
 
+.ts-clear {
+  appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #374151;
+  color: #f9fafb;
+  font: 600 14px/18px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.ts-clear:hover {
+  background: #4b5563;
+}
+
+.ts-clear[hidden] {
+  display: none;
+}
+
 .ts-pill {
   appearance: none;
   border: 0;
@@ -46,6 +68,11 @@
 
 .ts-pill:hover {
   background: #374151;
+}
+
+.ts-clear:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
 }
 
 .ts-pill:focus-visible,

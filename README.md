@@ -21,7 +21,7 @@ Hold **Option+S** (Alt+S) and hover a word to highlight it. Click the highlight 
 2. **Note** — intent (stronger than the article)  
 3. **Page** (title, H1, surrounding) — disambiguate only  
 
-The last note is a **placeholder**: type to replace it, or press Enter with an empty field to reuse it. It is stored in `chrome.storage.local` for the Chrome profile.
+The last note is a **placeholder**: type to replace it (even if you dismiss without surfing), or press Enter with an empty field to reuse it. Click **×** to delete it. It is stored in `chrome.storage.local` for the Chrome profile.
 
 Messy highlights (ticket prices, copyright) are trimmed to a short name (Nano, or a first-line heuristic) before Maps or Lucky.
 

@@ -6,7 +6,7 @@ const PILL_LABEL = "🌊 surf";
 const DEFAULT_PLACEHOLDER = "add a note…";
 const NOTE_DEBOUNCE_MS = 150;
 const PILL_PAD = 8;
-const PILL_EST_WIDTH = 280;
+const PILL_EST_WIDTH = 310;
 const PILL_EST_HEIGHT = 44;
 const HL_PAD = 4;
 
@@ -38,6 +38,7 @@ export function createPill({ onSurf }) {
   let shadowRoot = null;
   let barEl = null;
   let noteInput = null;
+  let clearBtn = null;
   let pillButton = null;
   let lastNote = "";
   let persistTimer = 0;
@@ -72,19 +73,44 @@ export function createPill({ onSurf }) {
   function applyPlaceholder() {
     if (!noteInput) return;
     noteInput.placeholder = lastNote || DEFAULT_PLACEHOLDER;
+    syncClearBtn();
+  }
+
+  function syncClearBtn() {
+    if (!clearBtn) return;
+    clearBtn.hidden = !lastNote && !typedNote();
   }
 
   function persistNote({ immediate = false } = {}) {
     const typed = typedNote();
-    if (!typed) return;
+    if (!typed) {
+      syncClearBtn();
+      return;
+    }
     lastNote = typed;
     window.clearTimeout(persistTimer);
     const write = () => chrome.storage.local.set({ [NOTE_KEY]: lastNote });
     if (immediate) {
       void write();
+      applyPlaceholder();
       return;
     }
-    persistTimer = window.setTimeout(write, NOTE_DEBOUNCE_MS);
+    persistTimer = window.setTimeout(() => {
+      void write();
+      applyPlaceholder();
+    }, NOTE_DEBOUNCE_MS);
+    syncClearBtn();
+  }
+
+  function clearNote() {
+    window.clearTimeout(persistTimer);
+    lastNote = "";
+    if (noteInput) {
+      noteInput.value = "";
+      noteInput.disabled = false;
+    }
+    applyPlaceholder();
+    void chrome.storage.local.set({ [NOTE_KEY]: "" });
   }
 
   void chrome.storage.local.get(NOTE_KEY).then((stored) => {
@@ -134,6 +160,18 @@ export function createPill({ onSurf }) {
       });
       applyPlaceholder();
 
+      clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "ts-clear";
+      clearBtn.setAttribute("aria-label", "Clear note");
+      clearBtn.textContent = "×";
+      clearBtn.hidden = true;
+      clearBtn.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearNote();
+      });
+
       pillButton = document.createElement("button");
       pillButton.type = "submit";
       pillButton.className = "ts-pill";
@@ -141,12 +179,12 @@ export function createPill({ onSurf }) {
 
       shadowRoot.addEventListener("mousedown", (event) => {
         const path = event.composedPath();
-        if (path.includes(noteInput)) return;
+        if (path.includes(noteInput) || path.includes(clearBtn)) return;
         event.preventDefault();
         event.stopPropagation();
       });
 
-      barEl.append(noteInput, pillButton);
+      barEl.append(noteInput, clearBtn, pillButton);
       shadowRoot.append(style, barEl);
     } else {
       applyHostLayer(host);
@@ -154,6 +192,7 @@ export function createPill({ onSurf }) {
         shadowRoot = host.shadowRoot;
         barEl = shadowRoot?.querySelector(".ts-bar");
         noteInput = shadowRoot?.querySelector(".ts-note");
+        clearBtn = shadowRoot?.querySelector(".ts-clear");
         pillButton = shadowRoot?.querySelector(".ts-pill");
       }
     }
@@ -196,6 +235,7 @@ export function createPill({ onSurf }) {
     if (!overlay) clearOverlay();
     if (barEl) barEl.classList.remove("is-error");
     if (noteInput && resetNote) {
+      persistNote({ immediate: true });
       noteInput.disabled = false;
       noteInput.value = "";
       applyPlaceholder();
@@ -229,6 +269,7 @@ export function createPill({ onSurf }) {
       pillButton.textContent = busy ? "🌊 surfing…" : PILL_LABEL;
     }
     if (noteInput) noteInput.disabled = busy;
+    if (clearBtn) clearBtn.disabled = busy;
   }
 
   function setError(isError) {
