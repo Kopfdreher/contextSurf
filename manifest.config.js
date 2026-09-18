@@ -5,7 +5,7 @@ export default defineManifest({
   name: "textSurf",
   version: "1.0.0",
   description:
-    "Highlight text, infer intent from the page, and open a relevant destination.",
+    "Turn any text snippet into a link, and level up your surfing experience.",
   permissions: ["contextMenus", "tabs", "storage"],
   host_permissions: ["<all_urls>"],
   icons: {
