@@ -17,7 +17,9 @@ npm run build
 2. **Note** — intent (stronger than the article)  
 3. **Page** (title, H1, surrounding) — disambiguate only  
 
-The note is stored in `chrome.storage.local` for the **Chrome profile** and stays in sync across tabs.
+The last note is a **placeholder**: type to replace it, or press Enter with an empty field to reuse it. It is stored in `chrome.storage.local` for the Chrome profile.
+
+Messy highlights (ticket prices, copyright) are trimmed to a short name (Nano, or a first-line heuristic) before Maps or Lucky.
 
 Maps shortcuts in the note (`maps`, `google maps`, `map`, `route`, `direction`) open Google Maps (search or directions) instead of Lucky. Otherwise the Prompt API (or a string fallback) writes a Lucky query.
 

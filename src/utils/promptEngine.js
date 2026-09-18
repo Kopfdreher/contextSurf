@@ -55,6 +55,45 @@ export function detectMapsIntent(note) {
   return null;
 }
 
+export function heuristicTidyEntity(selectedText) {
+  let text = String(selectedText || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const copyright = text.search(/©|&copy;|\(c\)/i);
+  if (copyright > 8) text = text.slice(0, copyright);
+  const firstChunk = text.split(/(?:\. |! |\? |\n)/)[0] || text;
+  text = firstChunk
+    .replace(/\b\d+([.,]\d+)?\s*(€|eur|usd|\$)\b/gi, " ")
+    .replace(/\b(ab|from)\s+\d+([.,]\d+)?\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const words = text.split(" ").filter(Boolean).slice(0, 6);
+  return words.join(" ") || String(selectedText).replace(/\s+/g, " ").trim().slice(0, 60);
+}
+
+export async function tidyEntity(selectedText, context) {
+  const fallback = heuristicTidyEntity(selectedText);
+  try {
+    const output = await withLanguageModel((session) =>
+      session.prompt(
+        `Extract the canonical place, organization, product, or person name from a messy text highlight.
+Drop prices, currency, ticket types, copyright, photo credits, slogans, and marketing copy.
+Output ONLY 2-6 words. Example: a zoo ticket block about Zoologischer Garten Berlin → Zoo Berlin.
+Use page title/H1 only to confirm the name.
+
+HIGHLIGHT: "${selectedText}"
+PAGE TITLE: ${context?.pageTitle ?? ""}
+H1: ${context?.h1 ?? ""}`,
+      ),
+    );
+    const cleaned = sanitizeQuery(output);
+    const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+    if (cleaned && wordCount >= 1 && wordCount <= 8) return cleaned;
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function mapsUrl(selectedText, note) {
   const kind = detectMapsIntent(note);
   if (!kind) return "";

@@ -2,12 +2,14 @@ import {
   detectMapsIntent,
   generateSearchQuery,
   mapsUrl,
+  tidyEntity,
 } from "./utils/promptEngine.js";
 import pillCss from "./content.css?inline";
 
 const HOST_ID = "vs-host";
 const PILL_LABEL = "Surf";
 const NOTE_KEY = "vibeSurfingLastNote";
+const DEFAULT_PLACEHOLDER = "add a note…";
 const NOTE_DEBOUNCE_MS = 150;
 const PILL_PAD = 8;
 const PILL_EST_WIDTH = 280;
@@ -52,10 +54,6 @@ function isHostActive() {
   return Boolean(active) || isInsideHost(document.activeElement);
 }
 
-function noteFieldFocused() {
-  return Boolean(noteInput && shadowRoot?.activeElement === noteInput);
-}
-
 function metaContent(...selectors) {
   for (const selector of selectors) {
     const value = document.querySelector(selector)?.getAttribute("content");
@@ -80,19 +78,23 @@ function pageContextFields() {
   };
 }
 
+function typedNote() {
+  return (noteInput?.value || "").replace(/\s+/g, " ").trim();
+}
+
 function extraNoteValue() {
-  return (noteInput?.value || lastNote || "").replace(/\s+/g, " ").trim();
+  return typedNote() || lastNote;
 }
 
-function applySavedNote() {
+function applyPlaceholder() {
   if (!noteInput) return;
-  if (noteFieldFocused() && extraNoteValue() === lastNote) return;
-  if (noteInput.value === lastNote) return;
-  noteInput.value = lastNote;
+  noteInput.placeholder = lastNote || DEFAULT_PLACEHOLDER;
 }
 
-function persistNote(value, { immediate = false } = {}) {
-  lastNote = String(value ?? "").replace(/\s+/g, " ").trim();
+function persistTypedNote(value, { immediate = false } = {}) {
+  const typed = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!typed) return;
+  lastNote = typed;
   window.clearTimeout(persistTimer);
   const write = () => chrome.storage.local.set({ [NOTE_KEY]: lastNote });
   if (immediate) {
@@ -105,7 +107,7 @@ function persistNote(value, { immediate = false } = {}) {
 void chrome.storage.local.get(NOTE_KEY).then((stored) => {
   if (typeof stored[NOTE_KEY] === "string") {
     lastNote = stored[NOTE_KEY];
-    applySavedNote();
+    applyPlaceholder();
   }
 });
 
@@ -115,7 +117,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   const value = typeof next === "string" ? next : "";
   if (value === lastNote) return;
   lastNote = value;
-  applySavedNote();
+  applyPlaceholder();
 });
 
 function clampPillPosition(rect) {
@@ -161,9 +163,9 @@ function getHost() {
       event.stopPropagation();
     });
     noteInput.addEventListener("input", () => {
-      persistNote(noteInput.value);
+      persistTypedNote(noteInput.value);
     });
-    applySavedNote();
+    applyPlaceholder();
 
     pillButton = document.createElement("button");
     pillButton.type = "submit";
@@ -191,10 +193,11 @@ function getHost() {
 function hidePill() {
   const host = hostEl();
   lastContext = null;
-  persistNote(noteInput?.value ?? lastNote, { immediate: true });
+  persistTypedNote(typedNote(), { immediate: true });
   if (noteInput) {
     noteInput.disabled = false;
-    applySavedNote();
+    noteInput.value = "";
+    applyPlaceholder();
   }
   if (pillButton) {
     pillButton.disabled = false;
@@ -247,7 +250,8 @@ function showPill(context) {
   if (barEl) barEl.classList.remove("is-error");
   if (noteInput) {
     noteInput.disabled = false;
-    applySavedNote();
+    noteInput.value = "";
+    applyPlaceholder();
   }
   if (pillButton) {
     pillButton.disabled = false;
@@ -264,13 +268,18 @@ function withExtraNote(context) {
 
 async function runSurf(selectedText, context) {
   const note = context?.extraNote || "";
+  const entity = await tidyEntity(selectedText, context);
+  const subject = entity || selectedText;
   if (detectMapsIntent(note)) {
-    const url = mapsUrl(selectedText, note);
+    const url = mapsUrl(subject, note);
     if (!url) throw new Error("Empty maps query");
     await sendMessage({ type: "OPEN_URL", url });
     return;
   }
-  const query = await generateSearchQuery(selectedText, context);
+  const query = await generateSearchQuery(subject, {
+    ...context,
+    selectedText: subject,
+  });
   if (!query) throw new Error("Empty query");
   await sendMessage({ type: "OPEN_URL", query });
 }
@@ -282,7 +291,7 @@ async function onSurfClick() {
     return;
   }
   const payload = withExtraNote(context);
-  persistNote(payload.extraNote, { immediate: true });
+  persistTypedNote(typedNote(), { immediate: true });
   if (pillButton) {
     pillButton.disabled = true;
     pillButton.textContent = "Surfing…";
