@@ -15,6 +15,7 @@ import {
   wordRangeAtCaret,
   wordRangeAtPoint,
 } from "./utils/wordRange.js";
+import { FLAG_KEY } from "./utils/keys.js";
 import { createPill } from "./pill.js";
 
 let lastContext = null;
@@ -23,6 +24,15 @@ let overlayRange = null;
 let shortcutHold = false;
 let lastPointer = { x: 0, y: 0 };
 let hoverRaf = 0;
+let openInBackground = false;
+
+void chrome.storage.local.get(FLAG_KEY).then((stored) => {
+  openInBackground = Boolean(stored[FLAG_KEY]);
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes[FLAG_KEY]) return;
+  openInBackground = Boolean(changes[FLAG_KEY].newValue);
+});
 
 const pill = createPill({
   onSurf: () => {
@@ -161,9 +171,11 @@ async function onSurfClick() {
   const payload = withExtraNote(context);
   pill.persistNote({ immediate: true });
   if (shortcutHold) {
-    void runSurf(payload.selectedText, payload).catch(() => {
+    const surf = runSurf(payload.selectedText, payload).catch(() => {
       pill.setError(true);
     });
+    if (!openInBackground) hideAll();
+    void surf;
     return;
   }
   pill.setBusy(true);
