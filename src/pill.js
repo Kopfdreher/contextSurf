@@ -11,6 +11,7 @@ const PILL_EST_WIDTH = 310;
 const PILL_EST_HEIGHT = 44;
 const HL_PAD_X = 6;
 const HL_PAD_Y = 4;
+const DEAD_ZONE_H = 8;
 
 function clampPillPosition(rect) {
   const hlLeft = rect.left - HL_PAD_X;
@@ -48,6 +49,7 @@ export function createPill({ onSurf }) {
   let lastNote = "";
   let persistTimer = 0;
   let overlayEls = [];
+  let textRects = [];
 
   function hostEl() {
     return document.getElementById(HOST_ID);
@@ -208,6 +210,7 @@ export function createPill({ onSurf }) {
   function clearOverlay() {
     for (const el of overlayEls) el.remove();
     overlayEls = [];
+    textRects = [];
   }
 
   function paintOverlay(range) {
@@ -216,6 +219,12 @@ export function createPill({ onSurf }) {
     const rects = range.getClientRects();
     for (const rect of rects) {
       if (rect.width === 0 && rect.height === 0) continue;
+      textRects.push({
+        left: rect.left,
+        right: rect.right,
+        top: rect.bottom,
+        bottom: rect.bottom + DEAD_ZONE_H,
+      });
       const el = document.createElement("div");
       el.className = "ts-hl";
       el.style.left = `${rect.left - HL_PAD_X}px`;
@@ -225,6 +234,12 @@ export function createPill({ onSurf }) {
       shadowRoot.append(el);
       overlayEls.push(el);
     }
+  }
+
+  function isTextDeadZone(x, y) {
+    return textRects.some(
+      (r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom,
+    );
   }
 
   function positionBar(rect) {
@@ -294,6 +309,7 @@ export function createPill({ onSurf }) {
     clearOverlay,
     positionBar,
     hasOverlay: () => overlayEls.length > 0,
+    isTextDeadZone,
     setBusy,
     setError,
   };

@@ -102,15 +102,15 @@ function highlightWordAtPoint(x, y) {
 }
 
 function startShortcutHold() {
+  if (shortcutHold) return true;
   shortcutHold = true;
-  const fromPoint = highlightWordAtPoint(lastPointer.x, lastPointer.y);
-  if (fromPoint) return true;
+  if (highlightWordAtPoint(lastPointer.x, lastPointer.y)) return true;
   const caret = wordRangeAtCaret(skipHost);
   if (caret) {
     return highlightFromRange(caret, { resetNote: !pill.hasOverlay() });
   }
   const selection = window.getSelection();
-  if (selection && !selection.isCollapsed && selection.rangeCount) {
+  if (selection?.rangeCount && !selection.isCollapsed) {
     return highlightFromRange(selection.getRangeAt(0), {
       resetNote: !pill.hasOverlay(),
     });
@@ -228,7 +228,7 @@ function onKeyDown(event) {
   if (!isOptionS(event) || event.repeat) return;
   event.preventDefault();
   event.stopPropagation();
-  if (!shortcutHold) startShortcutHold();
+  startShortcutHold();
 }
 
 function onKeyUp(event) {
@@ -248,10 +248,12 @@ function onMouseMove(event) {
   lastPointer = { x: event.clientX, y: event.clientY };
   if (!shortcutHold) return;
   if (pill.isInsideHost(event.target)) return;
+  if (pill.isTextDeadZone(event.clientX, event.clientY)) return;
   if (hoverRaf) return;
   hoverRaf = requestAnimationFrame(() => {
     hoverRaf = 0;
     if (!shortcutHold) return;
+    if (pill.isTextDeadZone(lastPointer.x, lastPointer.y)) return;
     highlightWordAtPoint(lastPointer.x, lastPointer.y);
   });
 }
