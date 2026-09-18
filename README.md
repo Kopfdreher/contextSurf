@@ -13,7 +13,7 @@ npm run build
 
 Click the toolbar icon to open settings: **open tabs in background**, and **Change shortcut** (default **Alt+S** / Option+S). Chrome may leave the key unset if it conflicts; assign it there if needed.
 
-Hold **Option+S** (Alt+S) and hover a word to highlight it. Click the highlight or **surf** to open the tab; release Option to dismiss.
+Hold **Option+S** (Alt+S) and hover a word to highlight it. Click the highlight or **surf** to open a tab; keep holding to hover more words and open more tabs. Release Option to dismiss.
 
 ## How it ranks signals
 

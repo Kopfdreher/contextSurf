@@ -28,7 +28,6 @@ let ignoreSelectionHide = false;
 let overlayEls = [];
 let overlayRange = null;
 let shortcutHold = false;
-let shortcutLatched = false;
 let lastPointer = { x: 0, y: 0 };
 let hoverRaf = 0;
 
@@ -245,9 +244,8 @@ function positionBar(rect) {
   barEl.style.top = `${pos.top}px`;
 }
 
-function hidePill({ latch = false } = {}) {
+function hidePill() {
   const host = hostEl();
-  if (latch && shortcutHold) shortcutLatched = true;
   shortcutHold = false;
   ignoreSelectionHide = false;
   overlayRange = null;
@@ -380,7 +378,6 @@ function highlightWordAtPoint(x, y) {
 }
 
 function startShortcutHold() {
-  if (shortcutLatched) return false;
   shortcutHold = true;
   ignoreSelectionHide = true;
   const fromPoint = highlightWordAtPoint(lastPointer.x, lastPointer.y);
@@ -511,20 +508,26 @@ async function runSurf(selectedText, context) {
 async function onSurfClick() {
   const context = lastContext || extractContext();
   if (!context?.selectedText) {
-    hidePill();
+    if (!shortcutHold) hidePill();
     return;
   }
   const payload = withExtraNote(context);
   persistTypedNote(typedNote(), { immediate: true });
+  const stayHeld = shortcutHold;
+  if (stayHeld) {
+    void runSurf(payload.selectedText, payload).catch(() => {
+      if (barEl) barEl.classList.add("is-error");
+    });
+    return;
+  }
   if (pillButton) {
     pillButton.disabled = true;
     pillButton.textContent = "🌊 surfing…";
   }
   if (noteInput) noteInput.disabled = true;
-  const latch = shortcutHold;
   try {
     await runSurf(payload.selectedText, payload);
-    hidePill({ latch });
+    hidePill();
   } catch {
     if (pillButton) {
       pillButton.disabled = false;
@@ -569,7 +572,6 @@ function isOptionS(event) {
 
 function onKeyDown(event) {
   if (!isOptionS(event) || event.repeat) return;
-  if (shortcutLatched) return;
   event.preventDefault();
   event.stopPropagation();
   if (!shortcutHold) startShortcutHold();
@@ -583,18 +585,17 @@ function onKeyUp(event) {
     event.code === "AltLeft" ||
     event.code === "AltRight";
   if (!releasedAlt) return;
-  shortcutLatched = false;
   if (shortcutHold || overlayEls.length) hidePill();
 }
 
 function onMouseMove(event) {
   lastPointer = { x: event.clientX, y: event.clientY };
-  if (!shortcutHold || shortcutLatched) return;
+  if (!shortcutHold) return;
   if (isInsideHost(event.target)) return;
   if (hoverRaf) return;
   hoverRaf = requestAnimationFrame(() => {
     hoverRaf = 0;
-    if (!shortcutHold || shortcutLatched) return;
+    if (!shortcutHold) return;
     highlightWordAtPoint(lastPointer.x, lastPointer.y);
   });
 }
@@ -606,7 +607,7 @@ function onHoldPointerDown(event) {
 }
 
 function onHoldClick(event) {
-  if (!shortcutHold || shortcutLatched) return;
+  if (!shortcutHold) return;
   if (isInsideHost(event.target)) return;
   if (!lastContext) return;
   event.preventDefault();
@@ -634,10 +635,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return;
   }
   if (message.preview) {
-    if (shortcutLatched) {
-      sendResponse({ ok: false });
-      return;
-    }
     sendResponse({ ok: startShortcutHold() });
     return;
   }
