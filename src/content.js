@@ -231,13 +231,20 @@ function onKeyDown(event) {
   startShortcutHold();
 }
 
+function shouldKeepBar() {
+  return (
+    pill.isHostActive() ||
+    pill.isPointerOverBar(lastPointer.x, lastPointer.y)
+  );
+}
+
 function onKeyUp(event) {
   const releasedAlt =
     event.key === "Alt" ||
     event.code === "AltLeft" ||
     event.code === "AltRight";
   if (!releasedAlt) return;
-  if (pill.isHostActive()) {
+  if (shouldKeepBar()) {
     stopShortcutHold();
     return;
   }
@@ -246,16 +253,19 @@ function onKeyUp(event) {
 
 function onMouseMove(event) {
   lastPointer = { x: event.clientX, y: event.clientY };
-  if (!shortcutHold) return;
-  if (pill.isInsideHost(event.target)) return;
-  if (pill.isTextDeadZone(event.clientX, event.clientY)) return;
-  if (hoverRaf) return;
-  hoverRaf = requestAnimationFrame(() => {
-    hoverRaf = 0;
-    if (!shortcutHold) return;
-    if (pill.isTextDeadZone(lastPointer.x, lastPointer.y)) return;
-    highlightWordAtPoint(lastPointer.x, lastPointer.y);
-  });
+  if (shortcutHold) {
+    if (pill.isInsideHost(event.target)) return;
+    if (pill.isTextDeadZone(event.clientX, event.clientY)) return;
+    if (hoverRaf) return;
+    hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      if (!shortcutHold) return;
+      if (pill.isTextDeadZone(lastPointer.x, lastPointer.y)) return;
+      highlightWordAtPoint(lastPointer.x, lastPointer.y);
+    });
+    return;
+  }
+  if (pill.hasOverlay() && !shouldKeepBar()) hideAll();
 }
 
 function onHoldPointerDown(event) {

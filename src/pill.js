@@ -242,6 +242,13 @@ export function createPill({ onSurf }) {
     );
   }
 
+  function isPointerOverBar(x, y) {
+    const host = hostEl();
+    if (!barEl || !host || host.style.display === "none") return false;
+    const r = barEl.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
   function positionBar(rect) {
     if (!barEl || !rect) return;
     const pos = clampPillPosition(rect);
@@ -310,6 +317,7 @@ export function createPill({ onSurf }) {
     positionBar,
     hasOverlay: () => overlayEls.length > 0,
     isTextDeadZone,
+    isPointerOverBar,
     setBusy,
     setError,
   };
