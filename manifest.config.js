@@ -20,7 +20,7 @@ export default defineManifest({
     {
       matches: ["https://www.google.com/*", "https://www.google.de/*"],
       js: ["src/googleRedirect.js"],
-      run_at: "document_idle",
+      run_at: "document_start",
     },
   ],
 });
