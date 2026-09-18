@@ -8,6 +8,10 @@ export default defineManifest({
     "Highlight text, infer intent from the page, and open a relevant destination.",
   permissions: ["contextMenus", "tabs", "storage"],
   host_permissions: ["<all_urls>"],
+  action: {
+    default_popup: "src/popup/popup.html",
+    default_title: "textSurf",
+  },
   background: {
     service_worker: "src/background.js",
     type: "module",

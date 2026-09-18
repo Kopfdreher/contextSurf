@@ -11,6 +11,8 @@ npm run build
 
 `chrome://extensions/` → Developer mode → **Load unpacked** → `dist/`
 
+Click the toolbar icon to open settings: **Open in background** keeps you on the current page; off (default) focuses the new tab.
+
 ## How it ranks signals
 
 1. **Highlighted text** — always the subject  
