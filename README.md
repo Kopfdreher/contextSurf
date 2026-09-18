@@ -33,3 +33,9 @@ Maps shortcuts in the note (`maps`, `google maps`, `map`, `route`, `direction`) 
 - `chrome://flags/#prompt-api-for-gemini-nano` → Enabled  
 
 Without Nano, fallback is `{selection}` + note, or title words if the note is empty.
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md). Chrome Web Store listing URL after you push:
+
+`https://github.com/Kopfdreher/vibe-surfing-chrome-extension/blob/main/PRIVACY.md`
