@@ -64,15 +64,19 @@ function extractContext() {
 }
 
 function hideAll() {
-  shortcutHold = false;
+  stopShortcutHold();
   overlayRange = null;
+  lastContext = null;
+  pill.hide();
+}
+
+function stopShortcutHold() {
+  shortcutHold = false;
   if (hoverRaf) {
     cancelAnimationFrame(hoverRaf);
     hoverRaf = 0;
   }
   document.documentElement.style.removeProperty("cursor");
-  lastContext = null;
-  pill.hide();
 }
 
 function highlightFromRange(range, { resetNote = false } = {}) {
@@ -233,6 +237,10 @@ function onKeyUp(event) {
     event.code === "AltLeft" ||
     event.code === "AltRight";
   if (!releasedAlt) return;
+  if (pill.isHostActive()) {
+    stopShortcutHold();
+    return;
+  }
   if (shortcutHold || pill.hasOverlay()) hideAll();
 }
 
