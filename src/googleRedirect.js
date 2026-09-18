@@ -1,9 +1,3 @@
-function isGoogleSearchHost() {
-  return /^(www\.)?google\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/i.test(
-    location.hostname,
-  );
-}
-
 function destinationFromUrlQuery() {
   if (!location.pathname.startsWith("/url")) return "";
   const raw = new URLSearchParams(location.search).get("q");
@@ -17,7 +11,5 @@ function destinationFromUrlQuery() {
   }
 }
 
-if (isGoogleSearchHost()) {
-  const destination = destinationFromUrlQuery();
-  if (destination) location.replace(destination);
-}
+const destination = destinationFromUrlQuery();
+if (destination) location.replace(destination);

@@ -1,13 +1,27 @@
 import { defineManifest } from "@crxjs/vite-plugin";
 
+const GOOGLE_SEARCH = [
+  "https://www.google.com/*",
+  "https://google.com/*",
+  "https://www.google.de/*",
+  "https://google.de/*",
+  "https://www.google.at/*",
+  "https://google.at/*",
+  "https://www.google.ch/*",
+  "https://google.ch/*",
+  "https://www.google.co.uk/*",
+  "https://google.co.uk/*",
+  "https://www.google.fr/*",
+  "https://google.fr/*",
+];
+
 export default defineManifest({
   manifest_version: 3,
   name: "textSurf",
   version: "1.0.0",
   description:
-    "Turn any text snippet into a link, and level up your surfing experience.",
-  permissions: ["contextMenus", "tabs", "storage"],
-  host_permissions: ["<all_urls>"],
+    "Highlight or hover text, add an optional note, and open a search or Maps tab.",
+  permissions: ["contextMenus", "storage"],
   icons: {
     16: "icons/icon16.png",
     48: "icons/icon48.png",
@@ -41,7 +55,7 @@ export default defineManifest({
       js: ["src/content.js"],
     },
     {
-      matches: ["<all_urls>"],
+      matches: GOOGLE_SEARCH,
       js: ["src/googleRedirect.js"],
       run_at: "document_start",
     },

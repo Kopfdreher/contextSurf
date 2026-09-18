@@ -39,7 +39,7 @@ If Chrome’s on-device Prompt API (Gemini Nano) is available, it may run **on y
 
 ## Permissions
 
-The extension uses `contextMenus`, `tabs`, `storage`, and access to pages you visit so it can show the bar and open a tab. A small script on Google search pages follows Lucky `/url` redirects in the tab you opened.
+The extension uses `contextMenus` and `storage`. A content script on pages you visit shows the bar and reads the text you Surf. A smaller script runs only on Google search pages to follow Lucky `/url` redirects in the tab you opened.
 
 ## Contact
 
