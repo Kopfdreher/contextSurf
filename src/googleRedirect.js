@@ -1,5 +1,12 @@
 const QUERY_KEY = "vibeSurfingLastQuery";
 
+function isMapsGoogle(hostname, pathname) {
+  return (
+    hostname.startsWith("maps.google.") ||
+    (hostname.includes("google.") && pathname.startsWith("/maps"))
+  );
+}
+
 function isRedirectNotice() {
   const title = (document.title || "").toLowerCase();
   const text = (document.body?.innerText || "").slice(0, 2000).toLowerCase();
@@ -15,8 +22,9 @@ function firstDestinationHref() {
   for (const link of links) {
     try {
       const url = new URL(link.href, location.href);
-      if (url.hostname.includes("google.")) continue;
       if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+      if (isMapsGoogle(url.hostname, url.pathname)) return url.toString();
+      if (url.hostname.includes("google.")) continue;
       return url.toString();
     } catch {
       /* skip */

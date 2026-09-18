@@ -23,6 +23,11 @@ const TITLE_STOPWORDS = new Set([
   "into",
 ]);
 
+const MAPS_SEARCH = /\b(google\s+maps|maps?)\b/i;
+const MAPS_DIR = /\b(routes?|directions?)\b/i;
+const MAPS_STRIP =
+  /\b(google\s+maps|maps?|routes?|directions?)\b/gi;
+
 function hostnameFromUrl(pageUrl) {
   try {
     return new URL(pageUrl).hostname.replace(/^www\./, "");
@@ -38,6 +43,31 @@ function sanitizeQuery(raw) {
     .trim();
 }
 
+function leftoverNote(note) {
+  return sanitizeQuery(String(note || "").replace(MAPS_STRIP, " "));
+}
+
+export function detectMapsIntent(note) {
+  const text = String(note || "");
+  if (!text.trim()) return null;
+  if (MAPS_DIR.test(text)) return "dir";
+  if (MAPS_SEARCH.test(text)) return "search";
+  return null;
+}
+
+export function mapsUrl(selectedText, note) {
+  const kind = detectMapsIntent(note);
+  if (!kind) return "";
+  const leftover = leftoverNote(note);
+  const q = [selectedText, leftover].filter(Boolean).join(" ").trim();
+  if (!q) return "";
+  const encoded = encodeURIComponent(q);
+  if (kind === "dir") {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encoded}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+}
+
 function distinctiveTokens(text, selectedText, limit) {
   const selected = new Set(
     String(selectedText || "")
@@ -48,7 +78,9 @@ function distinctiveTokens(text, selectedText, limit) {
   const words = String(text ?? "")
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
     .split(/\s+/)
-    .filter((word) => word.length > 2 && !TITLE_STOPWORDS.has(word.toLowerCase()));
+    .filter(
+      (word) => word.length > 2 && !TITLE_STOPWORDS.has(word.toLowerCase()),
+    );
   const unique = [];
   for (const word of words) {
     const key = word.toLowerCase();
@@ -61,27 +93,30 @@ function distinctiveTokens(text, selectedText, limit) {
 }
 
 export function fallbackQuery(selectedText, context) {
-  const note = sanitizeQuery(context?.extraNote);
-  const extras = distinctiveTokens(
-    `${context?.pageTitle || ""} ${context?.h1 || ""}`,
-    selectedText,
-    2,
-  );
-  const hostname = hostnameFromUrl(context?.pageUrl);
-  const parts = [selectedText, note, ...extras];
+  const note = leftoverNote(context?.extraNote);
+  const parts = [selectedText, note];
+  if (!note) {
+    parts.push(
+      ...distinctiveTokens(
+        `${context?.pageTitle || ""} ${context?.h1 || ""}`,
+        selectedText,
+        2,
+      ),
+    );
+  }
   const filled = parts.filter(Boolean);
-  if (filled.length <= 1 && hostname) filled.push(hostname);
+  if (filled.length <= 1) {
+    const hostname = hostnameFromUrl(context?.pageUrl);
+    if (hostname) filled.push(hostname);
+  }
   return filled.join(" ").trim();
 }
 
 function contextBlock(context) {
   return [
-    `Page title: ${context?.pageTitle ?? ""}`,
-    `H1: ${context?.h1 ?? ""}`,
-    `URL: ${context?.pageUrl ?? ""}`,
-    `Description: ${context?.description ?? ""}`,
-    `Surrounding: ${context?.surroundingContext ?? ""}`,
-    `User note: ${context?.extraNote ?? ""}`,
+    `1. HIGHLIGHT (highest): ${context?.selectedText ?? ""}`,
+    `2. USER NOTE (intent, below highlight, above page): ${context?.extraNote ?? ""}`,
+    `3. PAGE (disambiguate only): title=${context?.pageTitle ?? ""}; h1=${context?.h1 ?? ""}; url=${context?.pageUrl ?? ""}; description=${context?.description ?? ""}; surrounding=${context?.surroundingContext ?? ""}`,
   ].join("\n");
 }
 
@@ -102,19 +137,21 @@ async function withLanguageModel(run) {
 }
 
 export async function generateSearchQuery(selectedText, context) {
-  const fallback = fallbackQuery(selectedText, context);
+  const payload = { ...context, selectedText };
+  const fallback = fallbackQuery(selectedText, payload);
   try {
     const output = await withLanguageModel((session) =>
       session.prompt(
-        `You write Google I'm Feeling Lucky queries: the first result should be the page the reader wants next.
-ENTITY is highlighted on a page. Disambiguate it using title, H1, URL, description, and surrounding text (e.g. Stripe the payments company vs animal stripes).
-If a user note is present, it is the strongest signal for intent.
-Prefer a query that lands on an official/canonical page (homepage, product, docs, Wikipedia) rather than a random blog or aggregator.
-Do NOT default to careers or jobs unless the page or note is clearly about hiring/work.
-Output ONLY 4-8 words. No quotes or explanation. If the entity is ambiguous, include one disambiguator (industry, place, or product).
+        `You write Google I'm Feeling Lucky queries.
+Priority (do not invert):
+1. The highlighted ENTITY is the subject. Keep it in the query.
+2. The user note is intent (careers, pricing, docs, etc.). Stronger than the article, weaker than the highlight. Do not drop the entity for the note.
+3. Page title, H1, URL, description, and surrounding text are weakest. Use them only to disambiguate the entity (e.g. Stripe payments vs animal stripes). Never let them replace 1 or 2.
+Do NOT default to careers unless the highlight or note is about jobs.
+Prefer official/canonical first results (homepage, docs, Wikipedia, product).
+Output ONLY 4-8 words. No quotes.
 
-ENTITY: "${selectedText}"
-${contextBlock(context)}`,
+${contextBlock(payload)}`,
       ),
     );
     return sanitizeQuery(output) || fallback;

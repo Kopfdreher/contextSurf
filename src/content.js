@@ -1,9 +1,17 @@
-import { generateSearchQuery } from "./utils/promptEngine.js";
+import {
+  detectMapsIntent,
+  generateSearchQuery,
+  mapsUrl,
+} from "./utils/promptEngine.js";
 import pillCss from "./content.css?inline";
 
 const HOST_ID = "vs-host";
 const PILL_LABEL = "Surf";
 const NOTE_KEY = "vibeSurfingLastNote";
+const NOTE_DEBOUNCE_MS = 150;
+const PILL_PAD = 8;
+const PILL_EST_WIDTH = 280;
+const PILL_EST_HEIGHT = 44;
 
 let shadowRoot = null;
 let barEl = null;
@@ -12,6 +20,7 @@ let pillButton = null;
 let lastContext = null;
 let lastNote = "";
 let hideTimer = 0;
+let persistTimer = 0;
 
 function sendMessage(message) {
   return new Promise((resolve, reject) => {
@@ -43,6 +52,10 @@ function isHostActive() {
   return Boolean(active) || isInsideHost(document.activeElement);
 }
 
+function noteFieldFocused() {
+  return Boolean(noteInput && shadowRoot?.activeElement === noteInput);
+}
+
 function metaContent(...selectors) {
   for (const selector of selectors) {
     const value = document.querySelector(selector)?.getAttribute("content");
@@ -71,14 +84,22 @@ function extraNoteValue() {
   return (noteInput?.value || lastNote || "").replace(/\s+/g, " ").trim();
 }
 
-function persistNote(value) {
-  lastNote = String(value ?? "").replace(/\s+/g, " ").trim();
-  void chrome.storage.local.set({ [NOTE_KEY]: lastNote });
-}
-
 function applySavedNote() {
   if (!noteInput) return;
+  if (noteFieldFocused() && extraNoteValue() === lastNote) return;
+  if (noteInput.value === lastNote) return;
   noteInput.value = lastNote;
+}
+
+function persistNote(value, { immediate = false } = {}) {
+  lastNote = String(value ?? "").replace(/\s+/g, " ").trim();
+  window.clearTimeout(persistTimer);
+  const write = () => chrome.storage.local.set({ [NOTE_KEY]: lastNote });
+  if (immediate) {
+    void write();
+    return;
+  }
+  persistTimer = window.setTimeout(write, NOTE_DEBOUNCE_MS);
 }
 
 void chrome.storage.local.get(NOTE_KEY).then((stored) => {
@@ -87,6 +108,28 @@ void chrome.storage.local.get(NOTE_KEY).then((stored) => {
     applySavedNote();
   }
 });
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes[NOTE_KEY]) return;
+  const next = changes[NOTE_KEY].newValue;
+  const value = typeof next === "string" ? next : "";
+  if (value === lastNote) return;
+  lastNote = value;
+  applySavedNote();
+});
+
+function clampPillPosition(rect) {
+  const left = Math.min(
+    Math.max(PILL_PAD, rect.left),
+    Math.max(PILL_PAD, window.innerWidth - PILL_EST_WIDTH - PILL_PAD),
+  );
+  const below = rect.bottom + PILL_PAD;
+  const top =
+    below + PILL_EST_HEIGHT > window.innerHeight
+      ? Math.max(PILL_PAD, rect.top - PILL_EST_HEIGHT - PILL_PAD)
+      : below;
+  return { left, top };
+}
 
 function getHost() {
   let host = hostEl();
@@ -120,6 +163,7 @@ function getHost() {
     noteInput.addEventListener("input", () => {
       persistNote(noteInput.value);
     });
+    applySavedNote();
 
     pillButton = document.createElement("button");
     pillButton.type = "submit";
@@ -147,7 +191,7 @@ function getHost() {
 function hidePill() {
   const host = hostEl();
   lastContext = null;
-  persistNote(noteInput?.value ?? lastNote);
+  persistNote(noteInput?.value ?? lastNote, { immediate: true });
   if (noteInput) {
     noteInput.disabled = false;
     applySavedNote();
@@ -187,7 +231,7 @@ function extractContext() {
   return {
     selectedText,
     surroundingContext,
-    extraNote: "",
+    extraNote: extraNoteValue(),
     ...pageContextFields(),
     rect: range.getBoundingClientRect(),
   };
@@ -196,9 +240,10 @@ function extractContext() {
 function showPill(context) {
   const host = getHost();
   lastContext = context;
+  const pos = clampPillPosition(context.rect);
   host.style.display = "block";
-  host.style.left = `${Math.max(8, context.rect.left)}px`;
-  host.style.top = `${context.rect.bottom + 8}px`;
+  host.style.left = `${pos.left}px`;
+  host.style.top = `${pos.top}px`;
   if (barEl) barEl.classList.remove("is-error");
   if (noteInput) {
     noteInput.disabled = false;
@@ -218,12 +263,16 @@ function withExtraNote(context) {
 }
 
 async function runSurf(selectedText, context) {
+  const note = context?.extraNote || "";
+  if (detectMapsIntent(note)) {
+    const url = mapsUrl(selectedText, note);
+    if (!url) throw new Error("Empty maps query");
+    await sendMessage({ type: "OPEN_URL", url });
+    return;
+  }
   const query = await generateSearchQuery(selectedText, context);
   if (!query) throw new Error("Empty query");
-  await sendMessage({
-    type: "EXECUTE_AGENTIC_SURF",
-    query,
-  });
+  await sendMessage({ type: "OPEN_URL", query });
 }
 
 async function onSurfClick() {
@@ -233,7 +282,7 @@ async function onSurfClick() {
     return;
   }
   const payload = withExtraNote(context);
-  persistNote(payload.extraNote);
+  persistNote(payload.extraNote, { immediate: true });
   if (pillButton) {
     pillButton.disabled = true;
     pillButton.textContent = "Surfing…";
@@ -302,7 +351,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   void runSurf(selectedText, {
     selectedText,
-    extraNote: "",
+    extraNote: extraNoteValue(),
     surroundingContext: context?.surroundingContext ?? "",
     ...pageContextFields(),
   })

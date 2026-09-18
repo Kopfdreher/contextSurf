@@ -5,14 +5,8 @@ export default defineManifest({
   name: "Vibe Surfing",
   version: "1.0.0",
   description:
-    "Highlight text, infer intent from the page, and open the best matching result.",
-  permissions: [
-    "contextMenus",
-    "tabs",
-    "activeTab",
-    "scripting",
-    "storage",
-  ],
+    "Highlight text, infer intent from the page, and open a relevant destination.",
+  permissions: ["contextMenus", "tabs", "storage"],
   host_permissions: ["<all_urls>"],
   background: {
     service_worker: "src/background.js",

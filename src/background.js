@@ -24,16 +24,13 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "EXECUTE_AGENTIC_SURF" && message?.type !== "OPEN_URL") {
-    return;
-  }
+  if (message?.type !== "OPEN_URL") return;
   const query = String(message.query || "").trim();
   const direct = String(message.url || "").trim();
   if (!query && !direct) {
     sendResponse({ ok: false });
     return;
   }
-
   const url = direct || luckyUrl(query);
   void chrome.storage.session
     .set({ [QUERY_KEY]: query })
