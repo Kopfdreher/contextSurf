@@ -41,7 +41,7 @@ export default defineManifest({
       js: ["src/content.js"],
     },
     {
-      matches: ["https://www.google.com/*", "https://www.google.de/*"],
+      matches: ["<all_urls>"],
       js: ["src/googleRedirect.js"],
       run_at: "document_start",
     },

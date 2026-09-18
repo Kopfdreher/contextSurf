@@ -55,7 +55,7 @@ export function detectMapsIntent(note) {
   return null;
 }
 
-export function heuristicTidyEntity(selectedText) {
+function heuristicTidyEntity(selectedText) {
   let text = String(selectedText || "").replace(/\s+/g, " ").trim();
   if (!text) return "";
   const copyright = text.search(/©|&copy;|\(c\)/i);
@@ -131,7 +131,7 @@ function distinctiveTokens(text, selectedText, limit) {
   return unique;
 }
 
-export function fallbackQuery(selectedText, context) {
+function fallbackQuery(selectedText, context) {
   const note = leftoverNote(context?.extraNote);
   const parts = [selectedText, note];
   if (!note) {

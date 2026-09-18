@@ -1,51 +1,31 @@
-const QUERY_KEY = "textSurfLastQuery";
 const OVERLAY_ID = "ts-surfing";
 const STYLE_ID = "ts-surfing-style";
-const FALLBACK_MS = 1500;
+const OVERLAY_MS = 1000;
 
-function isMapsGoogle(hostname, pathname) {
+function isGoogleSearchHost() {
+  return /^(www\.)?google\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/i.test(
+    location.hostname,
+  );
+}
+
+function isLuckyOrUrl() {
   return (
-    hostname.startsWith("maps.google.") ||
-    (hostname.includes("google.") && pathname.startsWith("/maps"))
+    location.pathname.startsWith("/url") ||
+    new URLSearchParams(location.search).has("btnI")
   );
 }
 
-function looksLikeLuckyOrInterstitial() {
-  const params = new URLSearchParams(location.search);
-  return params.has("btnI") || location.pathname.startsWith("/url");
-}
-
-function isRedirectNoticeDom() {
-  const title = (document.title || "").toLowerCase();
-  if (title.includes("redirect notice")) return true;
-  const heading = document.querySelector("h1, h2");
-  const headingText = (heading?.textContent || "").toLowerCase();
-  return headingText.includes("redirect notice");
-}
-
-function isNormalSerp() {
-  if (looksLikeLuckyOrInterstitial() || isRedirectNoticeDom()) return false;
-  return Boolean(
-    document.querySelector("#search, #rso, #center_col, textarea[name='q']"),
-  );
-}
-
-function firstDestinationHref() {
-  const root = document.documentElement;
-  if (!root) return "";
-  const links = [...root.querySelectorAll("a[href]")];
-  for (const link of links) {
-    try {
-      const url = new URL(link.href, location.href);
-      if (url.protocol !== "http:" && url.protocol !== "https:") continue;
-      if (isMapsGoogle(url.hostname, url.pathname)) return url.toString();
-      if (url.hostname.includes("google.")) continue;
-      return url.toString();
-    } catch {
-      /* skip */
-    }
+function destinationFromUrlQuery() {
+  if (!location.pathname.startsWith("/url")) return "";
+  const raw = new URLSearchParams(location.search).get("q");
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return url.toString();
+  } catch {
+    return "";
   }
-  return "";
 }
 
 function showOverlay() {
@@ -82,65 +62,12 @@ function hideOverlay() {
   document.getElementById(OVERLAY_ID)?.remove();
 }
 
-async function fallbackToSerp() {
-  const stored = await chrome.storage.session.get(QUERY_KEY);
-  const query = stored[QUERY_KEY];
-  if (query) {
-    location.replace(
-      `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-    );
-  } else {
-    hideOverlay();
-  }
-}
-
-function jumpIfPossible() {
-  const destination = firstDestinationHref();
-  if (!destination) return false;
-  location.replace(destination);
-  return true;
-}
-
-function watchForDestination() {
-  if (jumpIfPossible()) return;
-  const observer = new MutationObserver(() => {
-    if (isNormalSerp()) {
-      observer.disconnect();
-      hideOverlay();
-      return;
-    }
-    if (jumpIfPossible()) observer.disconnect();
-  });
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-  });
-  window.setTimeout(() => {
-    if (jumpIfPossible()) {
-      observer.disconnect();
-      return;
-    }
-    if (isNormalSerp()) {
-      observer.disconnect();
-      hideOverlay();
-      return;
-    }
-    observer.disconnect();
-    void fallbackToSerp();
-  }, FALLBACK_MS);
-}
-
-if (looksLikeLuckyOrInterstitial()) {
+if (isGoogleSearchHost() && isLuckyOrUrl()) {
   showOverlay();
-  watchForDestination();
-} else {
-  const boot = new MutationObserver(() => {
-    if (isRedirectNoticeDom()) {
-      boot.disconnect();
-      showOverlay();
-      watchForDestination();
-    }
-  });
-  boot.observe(document.documentElement, { childList: true, subtree: true });
-  window.setTimeout(() => boot.disconnect(), FALLBACK_MS);
+  const destination = destinationFromUrlQuery();
+  if (destination) {
+    location.replace(destination);
+  } else {
+    window.setTimeout(hideOverlay, OVERLAY_MS);
+  }
 }

@@ -1,4 +1,5 @@
-const FLAG_KEY = "textSurfOpenInBackground";
+import { FLAG_KEY } from "../utils/keys.js";
+
 const COMMAND_ID = "textsurf-run";
 
 const checkbox = document.getElementById("background");
