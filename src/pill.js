@@ -4,21 +4,26 @@ import { NOTE_KEY } from "./utils/keys.js";
 const HOST_ID = "ts-host";
 const PILL_LABEL = "🌊 surf";
 const DEFAULT_PLACEHOLDER = "add a note…";
+const NOTE_MAX = 100;
 const NOTE_DEBOUNCE_MS = 150;
 const PILL_PAD = 8;
 const PILL_EST_WIDTH = 310;
 const PILL_EST_HEIGHT = 44;
-const HL_PAD = 4;
+const HL_PAD_X = 6;
+const HL_PAD_Y = 4;
 
 function clampPillPosition(rect) {
+  const hlLeft = rect.left - HL_PAD_X;
+  const hlTop = rect.top - HL_PAD_Y;
+  const hlBottom = rect.bottom + HL_PAD_Y;
   const left = Math.min(
-    Math.max(PILL_PAD, rect.left),
+    Math.max(PILL_PAD, hlLeft),
     Math.max(PILL_PAD, window.innerWidth - PILL_EST_WIDTH - PILL_PAD),
   );
-  const below = rect.bottom + PILL_PAD;
+  const below = hlBottom - 1;
   const top =
     below + PILL_EST_HEIGHT > window.innerHeight
-      ? Math.max(PILL_PAD, rect.top - PILL_EST_HEIGHT - PILL_PAD)
+      ? Math.max(PILL_PAD, hlTop - PILL_EST_HEIGHT + 1)
       : below;
   return { left, top };
 }
@@ -63,7 +68,7 @@ export function createPill({ onSurf }) {
   }
 
   function typedNote() {
-    return (noteInput?.value || "").replace(/\s+/g, " ").trim();
+    return (noteInput?.value || "").replace(/\s+/g, " ").trim().slice(0, NOTE_MAX);
   }
 
   function extraNote() {
@@ -115,7 +120,7 @@ export function createPill({ onSurf }) {
 
   void chrome.storage.local.get(NOTE_KEY).then((stored) => {
     if (typeof stored[NOTE_KEY] === "string") {
-      lastNote = stored[NOTE_KEY];
+      lastNote = stored[NOTE_KEY].slice(0, NOTE_MAX);
       applyPlaceholder();
     }
   });
@@ -125,7 +130,7 @@ export function createPill({ onSurf }) {
     const next = changes[NOTE_KEY].newValue;
     const value = typeof next === "string" ? next : "";
     if (value === lastNote) return;
-    lastNote = value;
+    lastNote = value.slice(0, NOTE_MAX);
     applyPlaceholder();
   });
 
@@ -151,6 +156,7 @@ export function createPill({ onSurf }) {
       noteInput.type = "text";
       noteInput.className = "ts-note";
       noteInput.placeholder = "add a note…";
+      noteInput.maxLength = NOTE_MAX;
       noteInput.autocomplete = "off";
       noteInput.addEventListener("keydown", (event) => {
         event.stopPropagation();
@@ -212,10 +218,10 @@ export function createPill({ onSurf }) {
       if (rect.width === 0 && rect.height === 0) continue;
       const el = document.createElement("div");
       el.className = "ts-hl";
-      el.style.left = `${rect.left - HL_PAD}px`;
-      el.style.top = `${rect.top - HL_PAD}px`;
-      el.style.width = `${rect.width + HL_PAD * 2}px`;
-      el.style.height = `${rect.height + HL_PAD * 2}px`;
+      el.style.left = `${rect.left - HL_PAD_X}px`;
+      el.style.top = `${rect.top - HL_PAD_Y}px`;
+      el.style.width = `${rect.width + HL_PAD_X * 2}px`;
+      el.style.height = `${rect.height + HL_PAD_Y * 2}px`;
       shadowRoot.append(el);
       overlayEls.push(el);
     }
