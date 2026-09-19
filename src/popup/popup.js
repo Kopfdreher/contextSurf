@@ -1,9 +1,11 @@
 import { FLAG_KEY } from "../utils/keys.js";
 
 const COMMAND_ID = "textsurf-run";
+const LUCKY_COMMAND_ID = "textsurf-lucky";
 
 const checkbox = document.getElementById("background");
 const shortcutEl = document.getElementById("shortcut");
+const luckyShortcutEl = document.getElementById("lucky-shortcut");
 const changeBtn = document.getElementById("change");
 
 function formatShortcut(shortcut) {
@@ -29,6 +31,8 @@ checkbox.addEventListener("change", () => {
 void chrome.commands.getAll().then((commands) => {
   const command = commands.find((item) => item.name === COMMAND_ID);
   shortcutEl.textContent = formatShortcut(command?.shortcut);
+  const lucky = commands.find((item) => item.name === LUCKY_COMMAND_ID);
+  luckyShortcutEl.textContent = formatShortcut(lucky?.shortcut);
 });
 
 changeBtn.addEventListener("click", () => {

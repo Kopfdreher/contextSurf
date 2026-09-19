@@ -44,6 +44,12 @@ export default defineManifest({
       },
       description: "Surf the selected text",
     },
+    "textsurf-lucky": {
+      suggested_key: {
+        mac: "Alt+Space",
+      },
+      description: "Open the note bar and Feeling Lucky search",
+    },
   },
   background: {
     service_worker: "src/background.js",

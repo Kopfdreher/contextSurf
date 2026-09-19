@@ -22,6 +22,7 @@ let lastContext = null;
 let hideTimer = 0;
 let overlayRange = null;
 let shortcutHold = false;
+let luckyMode = false;
 let lastPointer = { x: 0, y: 0 };
 let hoverRaf = 0;
 let openInBackground = false;
@@ -36,6 +37,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 const pill = createPill({
   onSurf: () => {
+    if (luckyMode) {
+      void onLuckySubmit();
+      return;
+    }
     void onSurfClick();
   },
 });
@@ -67,6 +72,7 @@ function hideAll() {
   stopShortcutHold();
   overlayRange = null;
   lastContext = null;
+  luckyMode = false;
   pill.hide();
 }
 
@@ -103,6 +109,7 @@ function highlightWordAtPoint(x, y) {
 
 function startShortcutHold() {
   if (shortcutHold) return true;
+  luckyMode = false;
   shortcutHold = true;
   if (highlightWordAtPoint(lastPointer.x, lastPointer.y)) return true;
   const caret = wordRangeAtCaret(skipHost);
@@ -166,6 +173,29 @@ async function runSurf(selectedText, context) {
   await sendMessage({ type: "OPEN_URL", query });
 }
 
+async function onLuckySubmit() {
+  const note = pill.extraNote();
+  if (!note) return;
+  pill.persistNote({ immediate: true });
+  pill.setBusy(true);
+  try {
+    await sendMessage({ type: "OPEN_URL", query: note });
+    hideAll();
+  } catch {
+    pill.setBusy(false);
+    pill.setError(true);
+  }
+}
+
+function openLuckyBar() {
+  stopShortcutHold();
+  overlayRange = null;
+  lastContext = null;
+  const already = luckyMode;
+  luckyMode = true;
+  pill.showLucky({ resetNote: !already });
+}
+
 async function onSurfClick() {
   const context = lastContext || extractContext();
   if (!context?.selectedText) {
@@ -195,6 +225,10 @@ async function onSurfClick() {
 function onMouseUp(event) {
   if (shortcutHold) return;
   if (pill.isInsideHost(event.target)) return;
+  if (luckyMode) {
+    hideAll();
+    return;
+  }
   window.clearTimeout(hideTimer);
   hideTimer = window.setTimeout(() => {
     if (shortcutHold) return;
@@ -208,7 +242,7 @@ function onMouseUp(event) {
 }
 
 function onSelectionChange() {
-  if (shortcutHold || pill.isHostActive()) return;
+  if (shortcutHold || luckyMode || pill.isHostActive()) return;
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || !selection.toString().trim()) {
     hideAll();
@@ -224,7 +258,28 @@ function isOptionS(event) {
   );
 }
 
+function isOptionSpace(event) {
+  return (
+    event.altKey &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    event.code === "Space"
+  );
+}
+
 function onKeyDown(event) {
+  if (event.key === "Escape" && (luckyMode || pill.isHostActive() || pill.hasOverlay())) {
+    event.preventDefault();
+    event.stopPropagation();
+    hideAll();
+    return;
+  }
+  if (isOptionSpace(event)) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat) openLuckyBar();
+    return;
+  }
   if (!isOptionS(event) || event.repeat) return;
   event.preventDefault();
   event.stopPropagation();
@@ -244,7 +299,7 @@ function onKeyUp(event) {
     event.code === "AltLeft" ||
     event.code === "AltRight";
   if (!releasedAlt) return;
-  if (shouldKeepBar()) {
+  if (luckyMode || shouldKeepBar()) {
     stopShortcutHold();
     return;
   }
@@ -284,6 +339,10 @@ function onHoldClick(event) {
 }
 
 function onScrollOrResize() {
+  if (luckyMode) {
+    pill.positionLuckyBar();
+    return;
+  }
   if (syncOverlay()) return;
   if (!pill.isHostActive()) hideAll();
 }
@@ -302,6 +361,11 @@ window.addEventListener("scroll", onScrollOrResize, {
 window.addEventListener("resize", onScrollOrResize);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "TEXTSURF_LUCKY") {
+    openLuckyBar();
+    sendResponse({ ok: true });
+    return;
+  }
   if (message?.type !== "TEXTSURF_SELECTION") {
     return;
   }

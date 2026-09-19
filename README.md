@@ -11,9 +11,11 @@ npm run build
 
 `chrome://extensions/` → Developer mode → **Load unpacked** → `dist/`
 
-Click the toolbar icon to open settings: **open tabs in background**, and **Change shortcut** (default **Alt+S** / Option+S). Chrome may leave the key unset if it conflicts; assign it there if needed.
+Click the toolbar icon to open settings: **open tabs in background**, and **Change shortcut** (default **Alt+S** / Option+S, plus **Option+Space** for notes). Chrome may leave a key unset if it conflicts; assign it there if needed.
 
 Hold **Option+S** (Alt+S) and hover a word to highlight it. Click the highlight or **surf** to open a tab; keep holding to hover more words and open more tabs. Release Option to dismiss.
+
+Press **Option+Space** to open the note bar in the upper-right corner (no highlight or page context). Type a note and press Enter to open an I’m Feeling Lucky tab.
 
 ## How it ranks signals
 

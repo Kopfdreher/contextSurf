@@ -256,11 +256,17 @@ export function createPill({ onSurf }) {
     barEl.style.top = `${pos.top}px`;
   }
 
-  function show(context, { overlay = false, resetNote = true } = {}) {
-    const host = getHost();
-    host.style.display = "block";
-    positionBar(context.rect);
-    if (!overlay) clearOverlay();
+  function positionLuckyBar() {
+    if (!barEl) return;
+    const left = Math.max(
+      PILL_PAD,
+      window.innerWidth - PILL_EST_WIDTH - PILL_PAD,
+    );
+    barEl.style.left = `${left}px`;
+    barEl.style.top = `${PILL_PAD}px`;
+  }
+
+  function resetBar({ resetNote = true } = {}) {
     if (barEl) barEl.classList.remove("is-error");
     if (noteInput && resetNote) {
       persistNote({ immediate: true });
@@ -272,6 +278,24 @@ export function createPill({ onSurf }) {
       pillButton.disabled = false;
       pillButton.textContent = PILL_LABEL;
     }
+  }
+
+  function show(context, { overlay = false, resetNote = true } = {}) {
+    const host = getHost();
+    host.style.display = "block";
+    positionBar(context.rect);
+    if (!overlay) clearOverlay();
+    resetBar({ resetNote });
+  }
+
+  function showLucky({ resetNote = true } = {}) {
+    const host = getHost();
+    host.style.display = "block";
+    clearOverlay();
+    positionLuckyBar();
+    resetBar({ resetNote });
+    noteInput?.focus();
+    requestAnimationFrame(() => noteInput?.focus());
   }
 
   function hide() {
@@ -311,10 +335,12 @@ export function createPill({ onSurf }) {
     extraNote,
     persistNote,
     show,
+    showLucky,
     hide,
     paintOverlay,
     clearOverlay,
     positionBar,
+    positionLuckyBar,
     hasOverlay: () => overlayEls.length > 0,
     isTextDeadZone,
     isPointerOverBar,

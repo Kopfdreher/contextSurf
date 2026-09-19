@@ -31,6 +31,20 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === "textsurf-lucky") {
+    const ping = (target) => {
+      if (!target?.id) return;
+      chrome.tabs.sendMessage(target.id, { type: "TEXTSURF_LUCKY" });
+    };
+    if (tab?.id) {
+      ping(tab);
+      return;
+    }
+    void chrome.tabs
+      .query({ active: true, currentWindow: true })
+      .then(([active]) => ping(active));
+    return;
+  }
   if (command !== "textsurf-run") return;
   const run = (target) => sendSurfToTab(target?.id, "", true);
   if (tab?.id) {
