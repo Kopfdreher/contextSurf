@@ -18,7 +18,7 @@ const GOOGLE_SEARCH = [
 export default defineManifest({
   manifest_version: 3,
   name: "textSurf",
-  version: "1.0.0",
+  version: "1.1.0",
   description:
     "Highlight or hover text, add an optional note, and open a search or Maps tab.",
   permissions: ["contextMenus", "storage"],
@@ -40,13 +40,12 @@ export default defineManifest({
     "textsurf-run": {
       suggested_key: {
         default: "Alt+S",
-        mac: "Alt+S",
       },
       description: "Surf the selected text",
     },
     "textsurf-lucky": {
       suggested_key: {
-        mac: "Alt+Space",
+        default: "Alt+Space",
       },
       description: "Open the note bar and Feeling Lucky search",
     },
