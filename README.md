@@ -1,8 +1,48 @@
 # textSurf
 
-Highlight text, add an optional note, and open the most relevant destination.
+Highlight any word, add a note like `spotify` or `kindle`, and jump straight to the page you meant.
 
-## Load
+**[Add to Chrome](https://chromewebstore.google.com/detail/textsurf/lomniglinjagabpdoebpmdimihadgped)** — this is the official listing.
+
+## Demo
+
+![Make any text interactive](docs/demo-interactive.png)
+
+![Jump to your intended site](docs/demo-intended-site.png)
+
+![Highlight and surf](docs/demo-highlight.png)
+
+![Customize your surfing experience](docs/demo-settings.png)
+
+## How to use
+
+1. Hold **Option+S** (Mac) or **Alt+S** (Windows/Linux).
+2. Hover a word or highlight a phrase.
+3. Type an optional note — where you want to go.
+4. Click **surf**. Keep holding the shortcut to surf more words; release it to dismiss.
+
+Open the toolbar icon to open new tabs in the background or change the shortcut.
+
+## What’s next (1.1.0)
+
+- Cleaner highlights (no leftover characters)
+- Spotlight-style launcher
+- Smarter last-note from page context (only when Nano decides to replace it)
+- Works on PDFs and Chrome’s new tab page
+- More reliable on pages that currently fail to connect
+- Rename to **contextSurf**
+- License may become open source
+- TypeScript port
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md).
+
+## License
+
+Proprietary. Copyright (c) 2026 Sergej Gavrilov. All rights reserved. See [LICENSE](LICENSE).
+
+## Developers
 
 ```bash
 npm install
@@ -10,32 +50,3 @@ npm run build
 ```
 
 `chrome://extensions/` → Developer mode → **Load unpacked** → `dist/`
-
-Click the toolbar icon to open settings: **open tabs in background**, and **Change shortcut** (default **Alt+S** / Option+S). Chrome may leave the key unset if it conflicts; assign it there if needed.
-
-Hold **Option+S** (Alt+S) and hover a word to highlight it. Click the highlight or **surf** to open a tab; keep holding to hover more words and open more tabs. Release Option to dismiss.
-
-## How it ranks signals
-
-1. **Highlighted text** — always the subject  
-2. **Note** — intent (stronger than the article)  
-3. **Page** (title, H1, surrounding) — disambiguate only  
-
-The last note is a **placeholder**: type to replace it (even if you dismiss without surfing), or press Enter with an empty field to reuse it. Click **×** to delete it. It is stored in `chrome.storage.local` for the Chrome profile.
-
-Messy highlights (ticket prices, copyright) are trimmed to a short name (Nano, or a first-line heuristic) before Maps or Lucky.
-
-Maps shortcuts in the note (`maps`, `google maps`, `map`, `route`, `direction`) open Google Maps (search or directions) instead of Lucky. Otherwise the Prompt API (or a string fallback) writes a Lucky query.
-
-## Built-in AI (optional)
-
-- `chrome://flags/#optimization-guide-on-device-model` → Enabled BypassRequirement  
-- `chrome://flags/#prompt-api-for-gemini-nano` → Enabled  
-
-Without Nano, fallback is `{selection}` + note, or title words if the note is empty.
-
-## Privacy
-
-See [PRIVACY.md](PRIVACY.md). Chrome Web Store listing URL after you push:
-
-`https://github.com/Kopfdreher/vibe-surfing-chrome-extension/blob/main/PRIVACY.md`
